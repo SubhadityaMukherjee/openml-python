@@ -19,6 +19,7 @@ import openml
 import openml._api_calls
 import openml.utils
 from openml import config
+from openml.config import OPENML_SKIP_PARQUET_ENV_VAR
 from openml.exceptions import (
     OpenMLCacheException,
     OpenMLRunsExistError,
@@ -821,7 +822,7 @@ def get_runs(run_ids: list[int]) -> list[OpenMLRun]:
 
 
 @openml.utils.thread_safe_if_oslo_installed
-def get_run(run_id: int, ignore_cache: bool = False) -> OpenMLRun:  # noqa: FBT002, FBT001
+def get_run(run_id: int, ignore_cache: bool = False, download_all_files: bool = False) -> OpenMLRun:  # noqa: FBT002, FBT001
     """Gets run corresponding to run_id.
 
     Parameters
@@ -855,10 +856,10 @@ def get_run(run_id: int, ignore_cache: bool = False) -> OpenMLRun:  # noqa: FBT0
         with run_file.open("w", encoding="utf8") as fh:
             fh.write(run_xml)
 
-    return _create_run_from_xml(run_xml)
+    return _create_run_from_xml(run_xml, download_all_files= download_all_files, run_dir=run_dir)
 
 
-def _create_run_from_xml(xml: str, from_server: bool = True) -> OpenMLRun:  # noqa: PLR0915, PLR0912, C901, FBT001, FBT002
+def _create_run_from_xml(xml: str, from_server: bool = True, download_all_files: bool = True, run_dir: Path = Path("")) -> OpenMLRun:  # noqa: PLR0915, PLR0912, C901, FBT001, FBT002
     """Create a run object from xml returned from server.
 
     Parameters
@@ -869,6 +870,9 @@ def _create_run_from_xml(xml: str, from_server: bool = True) -> OpenMLRun:  # no
     from_server : bool, optional (default=True)
         If True, an AttributeError is raised if any of the fields required by the server is not
         present in the xml. If False, those absent fields will be treated as None.
+    
+    download_all_files : bool, optional (default=True)
+        If True, all files in the run will be downloaded. (Eg: Minio files)
 
     Returns
     -------
@@ -952,7 +956,12 @@ def _create_run_from_xml(xml: str, from_server: bool = True) -> OpenMLRun:  # no
         predictions_url = None
     else:
         output_data = run["oml:output_data"]
+        minio_url = run["oml:minio_url"] 
         predictions_url = None
+
+        if download_all_files:
+            openml._api_calls._download_minio_bucket(source = minio_url, destination= run_dir)
+        
         if "oml:file" in output_data:
             # multiple files, the normal case
             for file_dict in output_data["oml:file"]:
@@ -1036,6 +1045,7 @@ def _create_run_from_xml(xml: str, from_server: bool = True) -> OpenMLRun:  # no
         tags=tags,
         predictions_url=predictions_url,
         run_details=run_details,
+        minio_url=minio_url,
     )
 
 

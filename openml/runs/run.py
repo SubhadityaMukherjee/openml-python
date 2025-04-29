@@ -93,6 +93,10 @@ class OpenMLRun(OpenMLBase):
         time the arff file is generated.
     run_details: str, optional (default=None)
         Description of the run stored in the run meta-data.
+    minio_url: string, optional
+        This is the URL to the storage location where the run files are hosted.
+        This is a MinIO bucket URL. If specified, the data will be accessed
+        from this URL when reading the files.
     """
 
     def __init__(  # noqa: PLR0913
@@ -122,6 +126,7 @@ class OpenMLRun(OpenMLBase):
         run_id: int | None = None,
         description_text: str | None = None,
         run_details: str | None = None,
+        minio_url: str | None = None,
     ):
         self.uploader = uploader
         self.uploader_name = uploader_name
@@ -150,6 +155,7 @@ class OpenMLRun(OpenMLBase):
         self.description_text = description_text
         self.run_details = run_details
         self._predictions = None
+        self._minio_url = minio_url
 
     @property
     def predictions(self) -> pd.DataFrame:
